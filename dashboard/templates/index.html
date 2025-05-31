@@ -1,0 +1,559 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Alerts Section -->
+<div id="alerts-container">
+    <!-- Dynamic alerts will be inserted here -->
+</div>
+
+<!-- Overview Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Active Nodes Card -->
+    <div class="metric-card p-6 glow-on-hover">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-300 mb-1">Active Nodes</p>
+                <p class="text-3xl font-bold" id="active-nodes-count">{{ node_count or 0 }}</p>
+                <p class="text-xs text-green-400 mt-1">
+                    <i class="fas fa-arrow-up"></i>
+                    <span id="nodes-change">+2 this hour</span>
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center">
+                <i class="fas fa-server text-blue-400 text-xl"></i>
+            </div>
+        </div>
+        <div class="mt-4 bg-blue-500 bg-opacity-20 rounded-full h-2">
+            <div class="bg-blue-500 h-2 rounded-full" style="width: {{ (node_count or 0) * 10 }}%"></div>
+        </div>
+    </div>
+    
+    <!-- Network Throughput Card -->
+    <div class="metric-card p-6 glow-on-hover">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-300 mb-1">Throughput</p>
+                <p class="text-3xl font-bold" id="throughput-value">156.2</p>
+                <p class="text-xs text-green-400 mt-1">
+                    <i class="fas fa-arrow-up"></i>
+                    <span id="throughput-change">+8.5% from last hour</span>
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-green-500 bg-opacity-20 rounded-full flex items-center justify-center">
+                <i class="fas fa-tachometer-alt text-green-400 text-xl"></i>
+            </div>
+        </div>
+        <div class="mt-4">
+            <canvas id="throughput-sparkline" width="200" height="40"></canvas>
+        </div>
+    </div>
+    
+    <!-- Memory Usage Card -->
+    <div class="metric-card p-6 glow-on-hover">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-300 mb-1">Memory Usage</p>
+                <p class="text-3xl font-bold" id="memory-value">3.2 GB</p>
+                <p class="text-xs text-yellow-400 mt-1">
+                    <i class="fas fa-arrow-up"></i>
+                    <span id="memory-change">+12% from baseline</span>
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-yellow-500 bg-opacity-20 rounded-full flex items-center justify-center">
+                <i class="fas fa-memory text-yellow-400 text-xl"></i>
+            </div>
+        </div>
+        <div class="mt-4 bg-yellow-500 bg-opacity-20 rounded-full h-2">
+            <div class="bg-yellow-500 h-2 rounded-full" style="width: 68%"></div>
+        </div>
+    </div>
+    
+    <!-- Training Progress Card -->
+    <div class="metric-card p-6 glow-on-hover">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-300 mb-1">Training Progress</p>
+                <p class="text-3xl font-bold" id="training-progress">87%</p>
+                <p class="text-xs text-purple-400 mt-1">
+                    <i class="fas fa-clock"></i>
+                    <span id="training-eta">~2.5h remaining</span>
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-purple-500 bg-opacity-20 rounded-full flex items-center justify-center">
+                <i class="fas fa-brain text-purple-400 text-xl"></i>
+            </div>
+        </div>
+        <div class="mt-4 bg-purple-500 bg-opacity-20 rounded-full h-2">
+            <div class="bg-purple-500 h-2 rounded-full" style="width: 87%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Real-time Charts Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Performance Metrics Chart -->
+    <div class="chart-container p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">Performance Metrics</h3>
+            <div class="flex space-x-2">
+                <button class="px-3 py-1 text-xs bg-blue-500 bg-opacity-20 rounded-full text-blue-300 hover:bg-opacity-30" onclick="setTimeRange('1h')">1H</button>
+                <button class="px-3 py-1 text-xs bg-gray-500 bg-opacity-20 rounded-full text-gray-300 hover:bg-opacity-30" onclick="setTimeRange('6h')">6H</button>
+                <button class="px-3 py-1 text-xs bg-gray-500 bg-opacity-20 rounded-full text-gray-300 hover:bg-opacity-30" onclick="setTimeRange('24h')">24H</button>
+            </div>
+        </div>
+        <div class="relative">
+            <canvas id="performance-chart" height="300"></canvas>
+        </div>
+    </div>
+    
+    <!-- Network Activity Chart -->
+    <div class="chart-container p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">Network Activity</h3>
+            <div class="flex items-center space-x-2 text-sm">
+                <span class="w-3 h-3 bg-blue-400 rounded-full"></span>
+                <span>Inbound</span>
+                <span class="w-3 h-3 bg-green-400 rounded-full ml-4"></span>
+                <span>Outbound</span>
+            </div>
+        </div>
+        <div class="relative">
+            <canvas id="network-chart" height="300"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Node Status and Quick Actions -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Node Status List -->
+    <div class="lg:col-span-2 glass-effect p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">Recent Node Activity</h3>
+            <a href="/nodes" class="text-blue-400 hover:text-blue-300 text-sm">View All Nodes →</a>
+        </div>
+        
+        <div class="space-y-3" id="node-activity-list">
+            <!-- Sample node activities -->
+            <div class="flex items-center justify-between p-3 bg-white bg-opacity-5 rounded-lg">
+                <div class="flex items-center space-x-3">
+                    <span class="status-indicator status-active"></span>
+                    <div>
+                        <p class="font-medium">node-7f2a8b91</p>
+                        <p class="text-xs text-gray-400">Started training on new dataset</p>
+                    </div>
+                </div>
+                <span class="text-xs text-gray-400">2 min ago</span>
+            </div>
+            
+            <div class="flex items-center justify-between p-3 bg-white bg-opacity-5 rounded-lg">
+                <div class="flex items-center space-x-3">
+                    <span class="status-indicator status-active"></span>
+                    <div>
+                        <p class="font-medium">node-a3d4c8e2</p>
+                        <p class="text-xs text-gray-400">Synchronized with 3 peers</p>
+                    </div>
+                </div>
+                <span class="text-xs text-gray-400">5 min ago</span>
+            </div>
+            
+            <div class="flex items-center justify-between p-3 bg-white bg-opacity-5 rounded-lg">
+                <div class="flex items-center space-x-3">
+                    <span class="status-indicator status-warning"></span>
+                    <div>
+                        <p class="font-medium">node-b9f1e6c4</p>
+                        <p class="text-xs text-gray-400">High memory usage detected</p>
+                    </div>
+                </div>
+                <span class="text-xs text-gray-400">8 min ago</span>
+            </div>
+            
+            <div class="flex items-center justify-between p-3 bg-white bg-opacity-5 rounded-lg">
+                <div class="flex items-center space-x-3">
+                    <span class="status-indicator status-active"></span>
+                    <div>
+                        <p class="font-medium">node-e5c7a2d8</p>
+                        <p class="text-xs text-gray-400">Self-cloned to new instance</p>
+                    </div>
+                </div>
+                <span class="text-xs text-gray-400">12 min ago</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions Panel -->
+    <div class="glass-effect p-6">
+        <h3 class="text-lg font-semibold mb-4">Quick Actions</h3>
+        
+        <div class="space-y-3">
+            <button class="w-full p-3 bg-blue-500 bg-opacity-20 hover:bg-opacity-30 rounded-lg text-left transition-all duration-200 hover:transform hover:scale-105" onclick="deployNewNode()">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-plus-circle text-blue-400"></i>
+                    <div>
+                        <p class="font-medium">Deploy New Node</p>
+                        <p class="text-xs text-gray-400">Add a new node to the swarm</p>
+                    </div>
+                </div>
+            </button>
+            
+            <button class="w-full p-3 bg-green-500 bg-opacity-20 hover:bg-opacity-30 rounded-lg text-left transition-all duration-200 hover:transform hover:scale-105" onclick="startTraining()">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-play-circle text-green-400"></i>
+                    <div>
+                        <p class="font-medium">Start Training</p>
+                        <p class="text-xs text-gray-400">Begin cooperative training</p>
+                    </div>
+                </div>
+            </button>
+            
+            <button class="w-full p-3 bg-purple-500 bg-opacity-20 hover:bg-opacity-30 rounded-lg text-left transition-all duration-200 hover:transform hover:scale-105" onclick="runBenchmark()">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-tachometer-alt text-purple-400"></i>
+                    <div>
+                        <p class="font-medium">Run Benchmark</p>
+                        <p class="text-xs text-gray-400">Test swarm performance</p>
+                    </div>
+                </div>
+            </button>
+            
+            <button class="w-full p-3 bg-orange-500 bg-opacity-20 hover:bg-opacity-30 rounded-lg text-left transition-all duration-200 hover:transform hover:scale-105" onclick="exportData()">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-download text-orange-400"></i>
+                    <div>
+                        <p class="font-medium">Export Data</p>
+                        <p class="text-xs text-gray-400">Download metrics and logs</p>
+                    </div>
+                </div>
+            </button>
+        </div>
+        
+        <!-- System Health Summary -->
+        <div class="mt-6 pt-4 border-t border-white border-opacity-20">
+            <h4 class="text-sm font-semibold mb-3">System Health</h4>
+            <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-300">CPU Usage</span>
+                    <span class="text-green-400">23%</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-300">Network Load</span>
+                    <span class="text-blue-400">45%</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-300">Error Rate</span>
+                    <span class="text-green-400">0.1%</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-300">Consensus</span>
+                    <span class="text-green-400">Healthy</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Chart configurations
+let performanceChart = null;
+let networkChart = null;
+let throughputSparkline = null;
+
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    startDataUpdates();
+});
+
+function initializeCharts() {
+    // Performance Chart
+    const performanceCtx = document.getElementById('performance-chart').getContext('2d');
+    performanceChart = new Chart(performanceCtx, {
+        type: 'line',
+        data: {
+            labels: generateTimeLabels(30),
+            datasets: [
+                {
+                    label: 'Throughput',
+                    data: generateSampleData(30, 100, 200),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Memory Usage',
+                    data: generateSampleData(30, 50, 100),
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: '#ffffff' }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#9ca3af' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                y: {
+                    ticks: { color: '#9ca3af' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                }
+            }
+        }
+    });
+    
+    // Network Chart
+    const networkCtx = document.getElementById('network-chart').getContext('2d');
+    networkChart = new Chart(networkCtx, {
+        type: 'line',
+        data: {
+            labels: generateTimeLabels(30),
+            datasets: [
+                {
+                    label: 'Inbound',
+                    data: generateSampleData(30, 20, 80),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Outbound',
+                    data: generateSampleData(30, 30, 90),
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: '#ffffff' }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#9ca3af' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                y: {
+                    ticks: { color: '#9ca3af' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                }
+            }
+        }
+    });
+    
+    // Throughput Sparkline
+    const sparklineCtx = document.getElementById('throughput-sparkline').getContext('2d');
+    throughputSparkline = new Chart(sparklineCtx, {
+        type: 'line',
+        data: {
+            labels: Array(20).fill(''),
+            datasets: [{
+                data: generateSampleData(20, 140, 180),
+                borderColor: '#10b981',
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            }
+        }
+    });
+}
+
+function generateTimeLabels(count) {
+    const labels = [];
+    const now = new Date();
+    for (let i = count - 1; i >= 0; i--) {
+        const time = new Date(now.getTime() - i * 60000); // 1 minute intervals
+        labels.push(time.toLocaleTimeString('en-US', { 
+            hour12: false, 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        }));
+    }
+    return labels;
+}
+
+function generateSampleData(count, min, max) {
+    return Array.from({ length: count }, () => 
+        Math.floor(Math.random() * (max - min + 1)) + min
+    );
+}
+
+function startDataUpdates() {
+    // Update charts every 5 seconds with new data
+    setInterval(() => {
+        updateChartsWithNewData();
+    }, 5000);
+}
+
+function updateChartsWithNewData() {
+    // Add new data point to performance chart
+    const now = new Date();
+    const timeLabel = now.toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
+    // Update performance chart
+    performanceChart.data.labels.push(timeLabel);
+    performanceChart.data.labels.shift();
+    
+    performanceChart.data.datasets[0].data.push(Math.floor(Math.random() * 100) + 100);
+    performanceChart.data.datasets[0].data.shift();
+    
+    performanceChart.data.datasets[1].data.push(Math.floor(Math.random() * 50) + 50);
+    performanceChart.data.datasets[1].data.shift();
+    
+    performanceChart.update('none');
+    
+    // Update network chart
+    networkChart.data.labels.push(timeLabel);
+    networkChart.data.labels.shift();
+    
+    networkChart.data.datasets[0].data.push(Math.floor(Math.random() * 60) + 20);
+    networkChart.data.datasets[0].data.shift();
+    
+    networkChart.data.datasets[1].data.push(Math.floor(Math.random() * 60) + 30);
+    networkChart.data.datasets[1].data.shift();
+    
+    networkChart.update('none');
+    
+    // Update sparkline
+    throughputSparkline.data.datasets[0].data.push(Math.floor(Math.random() * 40) + 140);
+    throughputSparkline.data.datasets[0].data.shift();
+    throughputSparkline.update('none');
+    
+    // Update metric values
+    document.getElementById('throughput-value').textContent = 
+        (Math.floor(Math.random() * 50) + 130).toFixed(1);
+}
+
+// WebSocket message handler
+window.updateMetrics = function(data) {
+    if (data.metrics) {
+        // Update real-time metrics from WebSocket
+        console.log('Received metrics update:', data);
+        
+        // Update node count
+        if (data.nodes !== undefined) {
+            document.getElementById('active-nodes-count').textContent = data.nodes;
+        }
+        
+        // Update charts with real data if available
+        if (data.metrics.throughput && data.metrics.throughput.length > 0) {
+            const latest = data.metrics.throughput[data.metrics.throughput.length - 1];
+            document.getElementById('throughput-value').textContent = latest.value.toFixed(1);
+        }
+    }
+};
+
+// Quick action functions
+function deployNewNode() {
+    showAlert({
+        title: 'Node Deployment',
+        message: 'Deploying new node to the swarm...'
+    });
+    
+    // Simulate deployment
+    setTimeout(() => {
+        const currentCount = parseInt(document.getElementById('active-nodes-count').textContent);
+        document.getElementById('active-nodes-count').textContent = currentCount + 1;
+    }, 2000);
+}
+
+function startTraining() {
+    showAlert({
+        title: 'Training Started',
+        message: 'Cooperative training initiated across all nodes'
+    });
+}
+
+function runBenchmark() {
+    showAlert({
+        title: 'Benchmark Started',
+        message: 'Performance benchmark running on all nodes'
+    });
+}
+
+function exportData() {
+    showAlert({
+        title: 'Export Started',
+        message: 'Generating data export - download will begin shortly'
+    });
+    
+    // Simulate download
+    setTimeout(() => {
+        const link = document.createElement('a');
+        link.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent('Sample metrics data...');
+        link.download = 'swarm-metrics-' + new Date().toISOString().split('T')[0] + '.csv';
+        link.click();
+    }, 2000);
+}
+
+function setTimeRange(range) {
+    // Update chart time range
+    console.log('Setting time range to:', range);
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('[onclick^="setTimeRange"]').forEach(btn => {
+        btn.className = btn.className.replace('bg-blue-500', 'bg-gray-500');
+    });
+    
+    // Add active class to clicked button
+    event.target.className = event.target.className.replace('bg-gray-500', 'bg-blue-500');
+}
+
+// Make showAlert available globally
+window.showAlert = function(alertData) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert-banner p-4 mb-4 text-white';
+    alertDiv.innerHTML = `
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                    <div class="font-semibold">${alertData.title}</div>
+                    <div class="text-sm opacity-90">${alertData.message}</div>
+                </div>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-gray-300">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    
+    const alertsContainer = document.getElementById('alerts-container');
+    alertsContainer.appendChild(alertDiv);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentElement) {
+            alertDiv.remove();
+        }
+    }, 5000);
+};
+</script>
+{% endblock %}

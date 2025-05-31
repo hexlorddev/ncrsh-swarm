@@ -1,0 +1,48 @@
+# ncrsh-Swarm Configuration Example
+# This file demonstrates all available configuration options
+
+node:
+  node_id: null  # Auto-generated if not specified
+  max_peers: 10
+  sync_interval: 30.0  # seconds
+  clone_threshold: 5   # clone when we have 5+ peers
+  enable_auto_clone: true
+  data_dir: "./swarm-data"
+
+model:
+  vocab_size: 50257    # GPT-2 vocab size
+  max_seq_len: 1024
+  hidden_size: 768
+  num_layers: 12
+  num_heads: 12
+  dropout: 0.1
+  bias: true
+  layer_norm_epsilon: 1.0e-05
+  enable_gradient_checkpointing: true
+  enable_mixed_precision: true
+  optimize_for_distributed: true
+
+network:
+  port: 8080
+  discovery_port: 8081
+  max_connections: 100
+  timeout: 30.0
+  enable_upnp: true
+  bootstrap_nodes: []  # Add known node addresses here
+  bind_address: "0.0.0.0"
+  discovery_interval: 60.0
+
+training:
+  epochs: 100
+  batch_size: 32
+  learning_rate: 0.001
+  sync_frequency: 5    # sync every 5 batches
+  enable_mixed_precision: true
+  gradient_clipping: 1.0
+
+deployment:
+  auto_start: true
+  log_level: "INFO"
+  metrics_enabled: true
+  dashboard_port: 8082
+  data_dir: "./swarm-data"
